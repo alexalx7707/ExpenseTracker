@@ -18,16 +18,16 @@ namespace ExpenseTracker.API.Controllers
             _transactionService = transactionService;
             _logger = logger; //added logger
         }
-            // GET: api/transactions/list-all
-            [HttpGet]
+        // GET: api/transactions/list-all
+        [HttpGet]
         [Route("list-all")]
         public async Task<ActionResult<List<Transaction>>> GetAllTransactions()
         {
             return (await _transactionService.GetAllTransactionsAsync()).ToList();
         }
 
-            // GET: api/transactions/get-by-id/{id}
-            [HttpGet]
+        // GET: api/transactions/get-by-id/{id}
+        [HttpGet]
         [Route("get-by-id/{id:guid}")]
         public async Task<ActionResult<Transaction>> GetTransactionById(Guid id)
         {
@@ -41,8 +41,8 @@ namespace ExpenseTracker.API.Controllers
             return Ok(transaction);
         }
 
-            // POST: api/transactions/create
-            [HttpPost]
+        // POST: api/transactions/create
+        [HttpPost]
         [Route("create")]
         public async Task<ActionResult<Transaction>> AddTransaction(TransactionDTO transactionModel)
         {
@@ -74,11 +74,13 @@ namespace ExpenseTracker.API.Controllers
                 {
                     Amount = transactionModel.Amount,
                     Category = transactionModel.Category,
+                    SubCategory = transactionModel.SubCategory,
                     Date = transactionModel.Date,
                     Description = transactionModel.Description,
                     IsRecurrent = transactionModel.IsRecurrent,
                     //TransactionType = transactionModel.TransactionType,
                     TransactionType = (TransactionTypeEnum)transactionModel.TransactionType,
+                    UserId = transactionModel.UserId
                 });
             }
             catch (Exception ex)
@@ -92,8 +94,8 @@ namespace ExpenseTracker.API.Controllers
             return Ok(result);
         }
 
-            // PUT: api/transactions/update/{id}
-            [HttpPut]
+        // PUT: api/transactions/update/{id}
+        [HttpPut]
         [Route("update/{id:guid}")]
         public async Task<ActionResult<Transaction>> UpdateTransaction(Guid id, TransactionDTO transactionModel)
         {
@@ -125,10 +127,12 @@ namespace ExpenseTracker.API.Controllers
 
             transaction.Amount = transactionModel.Amount;
             transaction.Category = transactionModel.Category;
+            transaction.SubCategory = transactionModel.SubCategory;
             transaction.Date = transactionModel.Date;
             transaction.Description = transactionModel.Description;
             transaction.IsRecurrent = transactionModel.IsRecurrent;
             transaction.TransactionType = (TransactionTypeEnum)transactionModel.TransactionType;
+            transaction.UserId = transactionModel.UserId;
 
             try
             {
@@ -143,8 +147,8 @@ namespace ExpenseTracker.API.Controllers
             }
         }
 
-            // DELETE: api/transactions/delete/{id}
-            [HttpDelete]
+        // DELETE: api/transactions/delete/{id}
+        [HttpDelete]
         [Route("delete/{id:guid}")]
         public async Task<ActionResult> DeleteTransaction(Guid id)
         {
@@ -167,8 +171,8 @@ namespace ExpenseTracker.API.Controllers
             }
         }
 
-            // GET: api/transactions/type/{transactionType}
-            [HttpGet]
+        // GET: api/transactions/type/{transactionType}
+        [HttpGet]
         [Route("type/{transactionType:int}")]
         public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactionsByType(int transactionType)
         {
@@ -179,6 +183,36 @@ namespace ExpenseTracker.API.Controllers
 
             var transactions = await _transactionService.GetTransactionsByTypeAsync(transactionType);
             return Ok(transactions);
+        }
+
+        // GET: api/transactions/monthly-report/{month}/{year}
+        [HttpGet]
+        [Route("monthly-report/{month:int}/{year:int}")]
+        public async Task<ActionResult<IEnumerable<Transaction>>> GetMonthlyReport(int month, int year)
+        {
+            if (month < 1 || month > 12)
+            {
+                return BadRequest("Invalid month.");
+            }
+
+            if (year < 1900 || year > 2100)
+            {
+                return BadRequest("Invalid year.");
+            }
+
+            var transactions = await _transactionService.GetMonthlyReportAsync(month, year);
+            var totalSpent = transactions.Where(t => t.TransactionType == TransactionTypeEnum.Expense).Sum(t => t.Amount);
+            //it filters the transactions that are expenses and sums the amount of each transaction
+            var totalIncome = transactions.Where(t => t.TransactionType == TransactionTypeEnum.Income).Sum(t => t.Amount);
+            var total = totalIncome - totalSpent;
+            var result = new
+            {
+                TotalIncome = totalIncome,
+                TotalSpent = totalSpent,
+                Total = total,
+                Transactions = transactions
+            };
+            return Ok(result);
         }
     }
 }
